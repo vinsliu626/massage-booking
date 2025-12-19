@@ -24,6 +24,14 @@ export async function POST(req: Request) {
 
     const { date, time, name, phone, email } = parsed.data;
 
+    if (!prisma) {
+  return NextResponse.json(
+    { ok: false, error: "Database not configured yet." },
+    { status: 500 }
+  );
+}
+
+
     // 先检查该时间是否已被 CONFIRMED 占用
     const conflict = await prisma.booking.findFirst({
       where: { date, time, status: "CONFIRMED" },

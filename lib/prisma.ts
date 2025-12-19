@@ -5,10 +5,14 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma =
-  global.prisma ??
-  new PrismaClient({
-    log: ["error", "warn"],
-  });
+function createPrismaClient() {
+  // 没配置数据库就先不创建（避免 Vercel build 阶段爆炸）
+  if (!process.env.DATABASE_URL) return null;
+  return new PrismaClient({ log: ["error", "warn"] });
+}
 
-if (process.env.NODE_ENV !== "production") global.prisma = prisma;
+export const prisma = global.prisma ?? createPrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  global.prisma = prisma ?? undefined;
+}
