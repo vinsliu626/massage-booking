@@ -14,19 +14,19 @@ enum BookingStatus {
 }
 
 model Booking {
-  id           String        @id @default(cuid())
-  date         String        // "2025-12-19"
-  time         String        // "14:00"
-  name         String
-  phone        String
-  email        String
-  status       BookingStatus @default(PENDING)
+  id     String        @id @default(cuid())
+  date   String // "2025-12-19"
+  time   String // "14:00"
+  name   String
+  phone  String
+  email  String
+  status BookingStatus @default(PENDING)
 
   // 用于邮件确认链接防伪
-  decisionToken String       @unique
+  decisionToken String @unique
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([date, time])
   @@index([status])

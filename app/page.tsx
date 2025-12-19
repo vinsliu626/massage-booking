@@ -1,20 +1,16 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type SlotStatus = "AVAILABLE" | "PENDING" | "CONFIRMED";
 
-const TIMES = [
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-];
+// ====== Time range config (10:00 -> 20:00) ======
+const START_HOUR = 10; // 10AM
+const END_HOUR = 20;   // 8PM (20:00)
+const TIMES: string[] = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => {
+  const h = START_HOUR + i;
+  return `${String(h).padStart(2, "0")}:00`;
+});
 
 function toISODate(d: Date) {
   const yyyy = d.getFullYear();
@@ -36,7 +32,8 @@ function fmtTimeLabel(t: string) {
 }
 
 export default function HomePage() {
-  const [startDate, setStartDate] = useState(() => toISODate(new Date()));
+  const todayIso = toISODate(new Date());
+  const [startDate, setStartDate] = useState(() => todayIso);
   const [days, setDays] = useState(7);
 
   const [dates, setDates] = useState<string[]>([]);
@@ -52,13 +49,17 @@ export default function HomePage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
+  // track if user manually changed start date
+  const userPinnedStartDate = useRef(false);
+
   async function load() {
     setLoading(true);
     setBanner("");
     try {
-      const res = await fetch(`/api/bookings/slots?start=${encodeURIComponent(startDate)}&days=${days}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/bookings/slots?start=${encodeURIComponent(startDate)}&days=${days}`,
+        { cache: "no-store" }
+      );
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Failed to load slots");
       setDates(data.dates || []);
@@ -75,22 +76,22 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, days]);
 
+  // Auto-advance startDate when day changes ONLY if user hasn't pinned it manually
   useEffect(() => {
-  // 每分钟检查一次是否跨天；如果跨天且用户没有手动改 startDate，则自动更新
-  let last = toISODate(new Date());
+    let last = toISODate(new Date());
 
-  const timer = setInterval(() => {
-    const now = toISODate(new Date());
-    if (now !== last) {
-      last = now;
-      // 只有当 startDate 还等于昨天（没有手动选成别的日期）才自动跳
-      setStartDate(now);
-    }
-  }, 60_000);
+    const timer = setInterval(() => {
+      const now = toISODate(new Date());
+      if (now !== last) {
+        last = now;
+        if (!userPinnedStartDate.current) {
+          setStartDate(now);
+        }
+      }
+    }, 60_000);
 
-  return () => clearInterval(timer);
-}, []);
-
+    return () => clearInterval(timer);
+  }, []);
 
   const gridStatus = useMemo(() => {
     const map: Record<string, Record<string, SlotStatus>> = {};
@@ -118,7 +119,7 @@ export default function HomePage() {
   async function submitBooking() {
     if (!selected) return;
 
-    // 只允许 Gmail
+    // Only Gmail
     const gmailOk = email.trim().toLowerCase().endsWith("@gmail.com");
     if (!gmailOk) {
       setBanner("❌ Only Gmail is allowed (must end with @gmail.com).");
@@ -171,13 +172,20 @@ export default function HomePage() {
               className="input"
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                userPinnedStartDate.current = true;
+                setStartDate(e.target.value);
+              }}
             />
           </div>
 
           <div className="control">
             <div className="label">Days</div>
-            <select className="input" value={days} onChange={(e) => setDays(Number(e.target.value))}>
+            <select
+              className="input"
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+            >
               <option value={7}>7</option>
               <option value={10}>10</option>
               <option value={14}>14</option>
@@ -186,6 +194,18 @@ export default function HomePage() {
 
           <button className="btn" onClick={load} disabled={loading}>
             {loading ? "Loading..." : "Refresh"}
+          </button>
+
+          <button
+            className="btn"
+            onClick={() => {
+              userPinnedStartDate.current = false;
+              setStartDate(toISODate(new Date()));
+            }}
+            disabled={loading}
+            title="Follow today's date automatically"
+          >
+            Today
           </button>
         </div>
       </div>
@@ -251,7 +271,9 @@ export default function HomePage() {
       {open && selected ? (
         <div className="modalBack" onMouseDown={() => setOpen(false)}>
           <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="modalTitle">Book {fmtDateShort(selected.date)} — {fmtTimeLabel(selected.time)}</div>
+            <div className="modalTitle">
+              Book {fmtDateShort(selected.date)} — {fmtTimeLabel(selected.time)}
+            </div>
 
             <div className="form">
               <div className="field">
@@ -266,7 +288,12 @@ export default function HomePage() {
 
               <div className="field">
                 <div className="label">Gmail</div>
-                <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@gmail.com" />
+                <input
+                  className="input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@gmail.com"
+                />
                 <div className="hint">Only Gmail is allowed.</div>
               </div>
             </div>
@@ -362,9 +389,8 @@ export default function HomePage() {
           background: rgba(99,102,241,0.30);
           border-color: rgba(99,102,241,0.45);
         }
-        .btn.ghost {
-          background: transparent;
-        }
+        .btn.ghost { background: transparent; }
+
         .legend {
           display: flex;
           gap: 10px;
