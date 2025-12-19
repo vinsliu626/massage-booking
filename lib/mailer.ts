@@ -1,7 +1,15 @@
 import { Resend } from "resend";
 
-export const resend = new Resend(process.env.RESEND_API_KEY!);
+export function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
 
-export const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
-export const FROM_EMAIL = process.env.FROM_EMAIL!; // 例如 "Bookings <onboarding@resend.dev>"
-export const APP_URL = process.env.APP_URL!;       // 例如 "https://xxx.vercel.app"
+export function getMailerEnv() {
+  return {
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL ?? "",
+    FROM_EMAIL: process.env.FROM_EMAIL ?? "",
+    APP_URL: process.env.APP_URL ?? "",
+  };
+}

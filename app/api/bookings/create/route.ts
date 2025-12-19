@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { CreateBookingSchema } from "@/lib/validators";
-import { resend, ADMIN_EMAIL, FROM_EMAIL, APP_URL } from "@/lib/mailer";
+import { getResend, getMailerEnv } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +21,17 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    const resend = getResend();
+const { ADMIN_EMAIL, FROM_EMAIL, APP_URL } = getMailerEnv();
+
+if (!resend || !ADMIN_EMAIL || !FROM_EMAIL || !APP_URL) {
+  return NextResponse.json(
+    { ok: false, error: "Mailer not configured yet." },
+    { status: 500 }
+  );
+}
+
 
     const { date, time, name, phone, email } = parsed.data;
 
