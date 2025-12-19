@@ -51,6 +51,16 @@ export default async function DecisionPage({
     return <div style={{ padding: 24 }}>Invalid link.</div>;
   }
 
+  if (!prisma) {
+  return (
+    <div style={{ padding: 24 }}>
+      Database not configured yet. Please set DATABASE_URL in Vercel and run
+      migrations.
+    </div>
+  );
+}
+
+
   const booking = await prisma.booking.findUnique({
     where: { decisionToken: token },
   });
