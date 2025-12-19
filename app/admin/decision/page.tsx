@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/prisma";
-import { resend, ADMIN_EMAIL, FROM_EMAIL } from "@/lib/mailer";
+import { getResend, getMailerEnv } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 
 async function sendResultEmails(booking: any) {
+  const resend = getResend();
+  const { ADMIN_EMAIL, FROM_EMAIL } = getMailerEnv();
+
+  // 没配置邮件就直接跳过（避免 TS 报错 + 运行时报错）
+  if (!resend || !ADMIN_EMAIL || !FROM_EMAIL) return;
+
   const subject =
     booking.status === "CONFIRMED"
       ? `✅ Booking Confirmed: ${booking.date} ${booking.time}`
@@ -51,15 +57,15 @@ export default async function DecisionPage({
     return <div style={{ padding: 24 }}>Invalid link.</div>;
   }
 
+  // 数据库未配置：直接返回提示（保证部署期不炸）
   if (!prisma) {
-  return (
-    <div style={{ padding: 24 }}>
-      Database not configured yet. Please set DATABASE_URL in Vercel and run
-      migrations.
-    </div>
-  );
-}
-
+    return (
+      <div style={{ padding: 24 }}>
+        Database not configured yet. Please set DATABASE_URL in Vercel and run
+        migrations.
+      </div>
+    );
+  }
 
   const booking = await prisma.booking.findUnique({
     where: { decisionToken: token },
@@ -85,11 +91,13 @@ export default async function DecisionPage({
         status: "CONFIRMED",
       },
     });
+
     if (conflict) {
       await prisma.booking.update({
         where: { id: booking.id },
         data: { status: "REJECTED" },
       });
+
       return (
         <div style={{ padding: 24 }}>
           Time slot already booked. This request was auto-rejected.
