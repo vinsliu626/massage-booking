@@ -32,6 +32,17 @@ export async function GET(req: Request) {
   const dates: string[] = [];
   for (let i = 0; i < days; i++) dates.push(toISODate(addDays(startDate, i)));
 
+  // ---- lightweight cleanup (keep last 30 days) ----
+try {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  await prisma.booking.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  });
+} catch (e) {
+  console.error("[cleanup] ignored:", e);
+}
+
+
   const bookings = await prisma.booking.findMany({
     where: {
       date: { in: dates },
